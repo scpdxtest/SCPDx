@@ -262,6 +262,38 @@ CONTRACT ipfsstoreooo : public contract {
     return ret;
   }  
 
+  [[eosio::action]] bool editmetadata (name creator, uint64_t id, string description, eosio::asset price) {
+    if (has_auth(creator)) {
+      check(price.is_valid(), "Invalid token!");
+      edit_store_table files(get_self(), get_self().value);
+      auto itr = files.find(id);
+      if (itr != files.end()) {
+        files.modify(itr, get_self(), [&](auto& new_row) {
+          new_row.description = description;
+          new_row.price = price;
+        });
+        print("Write to activities");
+        eosio::time_point_sec timestamp = time_point(current_time_point());
+        activity_table_new activities(get_self(), get_self().value);    
+        uint64_t new_act_id = activities.available_primary_key();
+        
+        activities.emplace( get_self(), [&](auto &a) {
+          a.uid = new_act_id;
+          a.actor = creator;
+          a.timestamp = timestamp;
+          a.act = 3;
+          a.object_id = itr->id;
+          a.file_id = itr->fileid;
+        });
+       return true;
+      } else {
+        return false;
+      }
+    } else {
+      return false;
+    }
+  }
+
   ACTION testuser() {
     print(get_self());
   }
